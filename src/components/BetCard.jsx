@@ -2,112 +2,137 @@ import React, { useState } from 'react';
 import { useBets } from '../lib/BetContext';
 
 export function BetCard({ bet }) {
-    const { placeBet, resolveBet, state } = useBets();
-    const [betAmount, setBetAmount] = useState(10);
-    const [showResolve, setShowResolve] = useState(false);
+  const { placeBet, resolveBet, deleteBet, state } = useBets();
+  const [betAmount, setBetAmount] = useState(10);
+  const [showResolve, setShowResolve] = useState(false);
 
-    const calculateOdds = (optionPool, totalPool) => {
-        if (optionPool === 0) return '2.00'; // Base odds if no bets
-        // Simple logic: Total / Option. 
-        // E.g. Pool 100. Option A has 50. Odds = 2.0. If you bet 10, you get 20.
-        return (totalPool / optionPool).toFixed(2);
-    };
+  const isAuthor = state.currentUser?.id === bet.authorId;
 
-    const handleBet = (optionId) => {
-        // Determine bet amount
-        const amount = parseInt(betAmount);
-        if (state.currentUser.points < amount) {
-            alert("No tienes puntos suficientes");
-            return;
-        }
-        placeBet(bet.id, optionId, amount);
-    };
+  const calculateOdds = (optionPool, totalPool) => {
+    if (optionPool === 0) return '2.00'; // Base odds if no bets
+    return (totalPool / optionPool).toFixed(2);
+  };
 
-    return (
-        <div className="card bet-card">
-            <div className="bet-header flex justify-between items-center">
-                <div className="flex items-center gap-sm">
-                    <div className="avatar">{bet.authorId === 'u1' ? '😎' : '👤'}</div>
-                    {/* In real app, look up user by ID */}
-                    <span className="text-sm text-muted">@{bet.authorId} preguntó:</span>
-                </div>
-                <div className="status-badge text-sm">
-                    {bet.status === 'active' ? '🟢 En curso' : '🔴 Finalizada'}
-                </div>
+  const handleBet = (optionId) => {
+    const amount = parseInt(betAmount);
+    if (state.currentUser.points < amount) {
+      alert("No tienes puntos suficientes");
+      return;
+    }
+    placeBet(bet.id, optionId, amount);
+  };
+
+  return (
+    <div className="card bet-card">
+      <div className="bet-header flex justify-between items-center">
+        <div className="flex items-center gap-sm">
+          <div className="avatar">{bet.authorId === 'u1' ? '😎' : '👤'}</div>
+          <span className="text-sm text-muted">@{bet.authorId} preguntó:</span>
+        </div>
+        <div className="flex items-center gap-sm">
+          <div className="status-badge text-sm">
+            {bet.status === 'active' ? '🟢 En curso' : '🔴 Finalizada'}
+          </div>
+          {isAuthor && (
+            <button
+              className="btn-icon-danger"
+              onClick={() => {
+                if (confirm('¿Borrar esta apuesta?')) deleteBet(bet.id);
+              }}
+              title="Borrar apuesta"
+            >
+              🗑
+            </button>
+          )}
+        </div>
+      </div>
+
+      <h3 className="bet-title">{bet.title}</h3>
+
+      {bet.imageUrl && (
+        <div className="bet-image-container">
+          <img src={bet.imageUrl} alt="Contexto" className="bet-image" />
+        </div>
+      )}
+
+      <div className="options-grid">
+        {bet.options.map((opt) => {
+          const odds = calculateOdds(opt.pool, bet.totalPool);
+          const isWinner = bet.status === 'resolved' && bet.result === opt.id;
+
+          return (
+            <button
+              key={opt.id}
+              className={`option-btn ${isWinner ? 'winner' : ''}`}
+              disabled={bet.status !== 'active'}
+              onClick={() => handleBet(opt.id)}
+            >
+              <div className="flex justify-between w-100">
+                <span>{opt.text}</span>
+                <span className="odds">x{odds}</span>
+              </div>
+              <div className="progress-bar">
+                <div
+                  className="fill"
+                  style={{ width: `${bet.totalPool > 0 ? (opt.pool / bet.totalPool) * 100 : 0}%` }}
+                />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {bet.status === 'active' && (
+        <div className="bet-actions flex-col">
+          <div className="chips-container flex gap-sm mb-2 w-100">
+            {[10, 50, 100].map(val => (
+              <button key={val} className="chip" onClick={() => setBetAmount(val)}>+{val}</button>
+            ))}
+          </div>
+
+          <div className="flex justify-between w-100 items-center">
+            <div className="bet-input-group">
+              <label>Apuesta:</label>
+              <input
+                type="number"
+                value={betAmount}
+                onChange={(e) => setBetAmount(e.target.value)}
+                step="10"
+                min="10"
+              />
+              <span>pts</span>
             </div>
+            <button className="btn-ghost text-sm" onClick={() => setShowResolve(!showResolve)}>
+              {showResolve ? 'Cancelar' : '⚠ Finalizar Apuesta'}
+            </button>
+          </div>
+        </div>
+      )}
 
-            <h3 className="bet-title">{bet.title}</h3>
+      {showResolve && bet.status === 'active' && (
+        <div className="resolve-panel glass">
+          <p className="text-sm font-bold text-center mb-2">¿Cuál fue el resultado real?</p>
+          <div className="flex flex-col gap-sm">
+            {bet.options.map(opt => (
+              <button
+                key={opt.id}
+                className="btn btn-secondary"
+                onClick={() => resolveBet(bet.id, opt.id)}
+              >
+                Gano: {opt.text}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-            <div className="options-grid">
-                {bet.options.map((opt) => {
-                    const odds = calculateOdds(opt.pool, bet.totalPool);
-                    const isWinner = bet.status === 'resolved' && bet.result === opt.id;
+      {bet.status === 'resolved' && (
+        <div className="result-banner text-center mt-2">
+          Resultado: <strong>{bet.options.find(o => o.id === bet.result)?.text}</strong>
+        </div>
+      )}
 
-                    return (
-                        <button
-                            key={opt.id}
-                            className={`option-btn ${isWinner ? 'winner' : ''}`}
-                            disabled={bet.status !== 'active'}
-                            onClick={() => handleBet(opt.id)}
-                        >
-                            <div className="flex justify-between w-100">
-                                <span>{opt.text}</span>
-                                <span className="odds">x{odds}</span>
-                            </div>
-                            <div className="progress-bar">
-                                <div
-                                    className="fill"
-                                    style={{ width: `${bet.totalPool > 0 ? (opt.pool / bet.totalPool) * 100 : 0}%` }}
-                                />
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
-
-            {bet.status === 'active' && (
-                <div className="bet-actions">
-                    <div className="bet-input-group">
-                        <label>Apuesta:</label>
-                        <input
-                            type="number"
-                            value={betAmount}
-                            onChange={(e) => setBetAmount(e.target.value)}
-                            step="10"
-                            min="10"
-                        />
-                        <span>pts</span>
-                    </div>
-                    <button className="btn-ghost text-sm" onClick={() => setShowResolve(!showResolve)}>
-                        {showResolve ? 'Cancelar' : '⚠ Finalizar Apuesta'}
-                    </button>
-                </div>
-            )}
-
-            {showResolve && bet.status === 'active' && (
-                <div className="resolve-panel glass">
-                    <p className="text-sm font-bold text-center mb-2">¿Cuál fue el resultado real?</p>
-                    <div className="flex flex-col gap-sm">
-                        {bet.options.map(opt => (
-                            <button
-                                key={opt.id}
-                                className="btn btn-secondary"
-                                onClick={() => resolveBet(bet.id, opt.id)}
-                            >
-                                Gano: {opt.text}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {bet.status === 'resolved' && (
-                <div className="result-banner text-center mt-2">
-                    Resultado: <strong>{bet.options.find(o => o.id === bet.result)?.text}</strong>
-                </div>
-            )}
-
-            <style>{`
+      <style>{`
         .bet-card {
           margin-bottom: var(--spacing-lg);
           position: relative;
@@ -173,6 +198,7 @@ export function BetCard({ bet }) {
           border-top: 1px solid var(--border-subtle);
           padding-top: var(--spacing-sm);
         }
+        .flex-col { flex-direction: column; align-items: flex-start; }
         .bet-input-group {
           display: flex;
           align-items: center;
@@ -196,7 +222,44 @@ export function BetCard({ bet }) {
           padding: 20px;
           z-index: 10;
         }
+        .btn-icon-danger {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 1.2rem;
+          margin-left: 8px;
+          opacity: 0.7;
+          color: var(--danger);
+        }
+        .btn-icon-danger:hover { opacity: 1; transform: scale(1.1); }
+        .bet-image-container {
+          width: 100%;
+          border-radius: var(--radius-sm);
+          overflow: hidden;
+          margin-bottom: var(--spacing-md);
+          background: #000;
+        }
+        .bet-image {
+          width: 100%;
+          height: auto;
+          max-height: 300px;
+          object-fit: contain;
+        }
+        .chips-container { margin-bottom: 12px; }
+        .chip {
+          background: var(--bg-surface);
+          border: 1px solid var(--primary);
+          color: var(--primary);
+          border-radius: var(--radius-full);
+          padding: 4px 12px;
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .chip:hover { background: var(--primary); color: white; }
+        .w-100 { width: 100%; }
+        .mb-2 { margin-bottom: 8px; }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

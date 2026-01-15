@@ -4,6 +4,7 @@ import { useBets } from '../lib/BetContext';
 export function CreateBet({ onComplete }) {
     const { createBet } = useBets();
     const [title, setTitle] = useState('');
+    const [imageUrl, setImageUrl] = useState('');
     const [options, setOptions] = useState(['', '', '']); // 3 options default
 
     const handleOptionChange = (idx, val) => {
@@ -18,7 +19,7 @@ export function CreateBet({ onComplete }) {
             alert("Llena todos los campos");
             return;
         }
-        createBet(title, options);
+        createBet(title, options, imageUrl);
         onComplete(); // Go back to feed
     };
 
@@ -36,6 +37,16 @@ export function CreateBet({ onComplete }) {
                         value={title}
                         onChange={e => setTitle(e.target.value)}
                         rows={3}
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label>URL de Imagen o GIF (Opcional)</label>
+                    <input
+                        type="url"
+                        placeholder="https://media.giphy.com/..."
+                        value={imageUrl}
+                        onChange={e => setImageUrl(e.target.value)}
                     />
                 </div>
 

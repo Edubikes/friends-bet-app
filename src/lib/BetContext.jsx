@@ -86,6 +86,10 @@ function betReducer(state, action) {
 
       return { ...state, currentUser: updatedUser, bets: updatedBets };
     }
+    case 'DELETE_BET': {
+      const betId = action.payload;
+      return { ...state, bets: state.bets.filter(b => b.id !== betId) };
+    }
     case 'RESOLVE_BET': {
       const { betId, winningOptionId } = action.payload;
 
@@ -105,6 +109,7 @@ function betReducer(state, action) {
         id: `b${Date.now()}`,
         authorId: state.currentUser.id,
         title: action.payload.title,
+        imageUrl: action.payload.imageUrl || null,
         options: action.payload.options.map((text, idx) => ({ id: idx + 1, text, pool: 0 })),
         status: 'active',
         createdAt: Date.now(),
@@ -128,8 +133,12 @@ export function BetProvider({ children }) {
     dispatch({ type: 'RESOLVE_BET', payload: { betId, winningOptionId } });
   };
 
-  const createBet = (title, options) => {
-    dispatch({ type: 'CREATE_BET', payload: { title, options } });
+  const createBet = (title, options, imageUrl) => {
+    dispatch({ type: 'CREATE_BET', payload: { title, options, imageUrl } });
+  };
+
+  const deleteBet = (betId) => {
+    dispatch({ type: 'DELETE_BET', payload: betId });
   };
 
   const login = (name) => {
@@ -141,7 +150,7 @@ export function BetProvider({ children }) {
   };
 
   return (
-    <BetContext.Provider value={{ state, placeBet, resolveBet, createBet, login, logout }}>
+    <BetContext.Provider value={{ state, placeBet, resolveBet, createBet, deleteBet, login, logout }}>
       {children}
     </BetContext.Provider>
   );
