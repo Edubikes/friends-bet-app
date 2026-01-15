@@ -3,7 +3,7 @@ import { useBets } from '../lib/BetContext';
 import { BetCard } from '../components/BetCard';
 
 export function Feed() {
-  const { state } = useBets();
+  const { state, logout } = useBets();
   const [activeTab, setActiveTab] = useState('active'); // active | resolved
 
   // Sort by newest
@@ -15,9 +15,12 @@ export function Feed() {
       <header className="header glass flex-col gap-sm">
         <div className="flex justify-between items-center w-100">
           <h1 className="logo">MierclitorisBET 🍑</h1>
-          <div className="user-score">
-            <span>{state.currentUser.points} pts</span>
-            <span className="avatar-sm">{state.currentUser.avatar}</span>
+          <div className="flex items-center gap-sm">
+            <div className="user-score">
+              <span>{state.currentUser.points} pts</span>
+              <span className="avatar-sm">{state.currentUser.avatar}</span>
+            </div>
+            <button onClick={logout} className="btn-icon-glass" title="Salir">🚪</button>
           </div>
         </div>
 
@@ -98,6 +101,23 @@ export function Feed() {
             background: var(--bg-card);
             color: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .btn-icon-glass {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+        }
+        .btn-icon-glass:hover {
+            background: rgba(255, 25, 25, 0.3);
+            transform: scale(1.1);
         }
       `}</style>
     </div>

@@ -2,10 +2,10 @@ import { createContext, useContext, useReducer, useEffect } from 'react';
 
 const BetContext = createContext();
 
-// Helper to get initial user from local storage
-const getStoredUser = () => {
-  const stored = localStorage.getItem('friendsbet_user');
-  return stored ? JSON.parse(stored) : null;
+// Helper to get initial data from local storage
+const getStoredData = (key, defaultValue) => {
+  const stored = localStorage.getItem(key);
+  return stored ? JSON.parse(stored) : defaultValue;
 };
 
 // Helper for monthly logic
@@ -20,51 +20,55 @@ const getTodayKey = () => {
   return `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`;
 };
 
+const defaultUsers = [
+  { id: 'u1', name: 'Eduardo', avatar: '😎', points: 100 },
+  { id: 'u2', name: 'Sofia', avatar: '👩‍🎤', points: 100 },
+  { id: 'u3', name: 'Diego', avatar: '🧢', points: 100 },
+  { id: 'u4', name: 'Ana', avatar: '🌺', points: 100 },
+];
+
+const defaultBets = [
+  {
+    id: 'b1',
+    authorId: 'u2',
+    title: '¿A Edu lo sacan de la peda antes de las 12?',
+    options: [
+      { id: 1, text: 'Antes de las 12', pool: 50 },
+      { id: 2, text: 'Después de las 12', pool: 30 },
+      { id: 3, text: 'No lo sacan', pool: 10 },
+    ],
+    status: 'active',
+    createdAt: Date.now() - 100000,
+    totalPool: 90,
+    voters: [],
+    comments: [
+      { id: 'c1', user: 'Sofia', text: 'Esto es seguro que pasa 😂', time: Date.now() - 50000 }
+    ]
+  },
+  {
+    id: 'b2',
+    authorId: 'u3',
+    title: '¿Quién gana el FIFA?',
+    options: [
+      { id: 1, text: 'Diego', pool: 100 },
+      { id: 2, text: 'Edu', pool: 20 },
+      { id: 3, text: 'Empate', pool: 5 },
+    ],
+    status: 'active',
+    createdAt: Date.now() - 50000,
+    totalPool: 125,
+    voters: [],
+    comments: []
+  }
+];
+
 const initialState = {
-  currentUser: getStoredUser(),
+  currentUser: getStoredData('friendsbet_user', null),
   currentMonth: getCurrentMonthKey(),
-  lastMonthWinner: null, // { name: 'Edu', month: '12-2025' }
-  monthlyPrize: 'Una caguama bien fría 🍺',
-  users: [
-    { id: 'u1', name: 'Eduardo', avatar: '😎', points: 100 },
-    { id: 'u2', name: 'Sofia', avatar: '👩‍🎤', points: 100 },
-    { id: 'u3', name: 'Diego', avatar: '🧢', points: 100 },
-    { id: 'u4', name: 'Ana', avatar: '🌺', points: 100 },
-  ],
-  bets: [
-    {
-      id: 'b1',
-      authorId: 'u2',
-      title: '¿A Edu lo sacan de la peda antes de las 12?',
-      options: [
-        { id: 1, text: 'Antes de las 12', pool: 50 },
-        { id: 2, text: 'Después de las 12', pool: 30 },
-        { id: 3, text: 'No lo sacan', pool: 10 },
-      ],
-      status: 'active', // active, resolved
-      createdAt: Date.now() - 100000,
-      totalPool: 90,
-      voters: [],
-      comments: [
-        { id: 'c1', user: 'Sofia', text: 'Esto es seguro que pasa 😂', time: Date.now() - 50000 }
-      ]
-    },
-    {
-      id: 'b2',
-      authorId: 'u3',
-      title: '¿Quién gana el FIFA?',
-      options: [
-        { id: 1, text: 'Diego', pool: 100 },
-        { id: 2, text: 'Edu', pool: 20 },
-        { id: 3, text: 'Empate', pool: 5 },
-      ],
-      status: 'active',
-      createdAt: Date.now() - 50000,
-      totalPool: 125,
-      voters: [],
-      comments: []
-    }
-  ],
+  lastMonthWinner: getStoredData('friendsbet_winner', null),
+  monthlyPrize: getStoredData('friendsbet_prize', 'Una caguama bien fría 🍺'),
+  users: getStoredData('friendsbet_users', defaultUsers),
+  bets: getStoredData('friendsbet_bets', defaultBets),
 };
 
 function betReducer(state, action) {
@@ -140,6 +144,11 @@ function betReducer(state, action) {
       // Update User Points
       const updatedUser = { ...state.currentUser, points: state.currentUser.points - amount };
 
+      // Update Users List
+      const updatedUsersList = state.users.map(u =>
+        u.id === updatedUser.id ? updatedUser : u
+      );
+
       // Update Bet Pool & Voters
       const updatedBets = state.bets.map(bet => {
         if (bet.id === betId) {
@@ -154,7 +163,7 @@ function betReducer(state, action) {
         return bet;
       });
 
-      return { ...state, currentUser: updatedUser, bets: updatedBets };
+      return { ...state, currentUser: updatedUser, users: updatedUsersList, bets: updatedBets };
     }
     case 'DELETE_BET': {
       const betId = action.payload;
@@ -246,6 +255,15 @@ export function BetProvider({ children }) {
   useEffect(() => {
     dispatch({ type: 'CHECK_MONTHLY_RESET' });
   }, []);
+
+  // Persistence Effect
+  useEffect(() => {
+    if (state.currentUser) localStorage.setItem('friendsbet_user', JSON.stringify(state.currentUser));
+    localStorage.setItem('friendsbet_users', JSON.stringify(state.users));
+    localStorage.setItem('friendsbet_bets', JSON.stringify(state.bets));
+    localStorage.setItem('friendsbet_prize', JSON.stringify(state.monthlyPrize));
+    if (state.lastMonthWinner) localStorage.setItem('friendsbet_winner', JSON.stringify(state.lastMonthWinner));
+  }, [state]);
 
   return (
     <BetContext.Provider value={{ state, placeBet, resolveBet, createBet, deleteBet, login, logout, setPrize, addComment }}>
