@@ -3,28 +3,28 @@ import { useBets } from '../lib/BetContext';
 import { BetCard } from '../components/BetCard';
 
 export function Feed() {
-    const { state } = useBets();
+  const { state } = useBets();
 
-    // Sort by newest
-    const sortedBets = [...state.bets].sort((a, b) => b.createdAt - a.createdAt);
+  // Sort by newest
+  const sortedBets = [...state.bets].sort((a, b) => b.createdAt - a.createdAt);
 
-    return (
-        <div className="view-container">
-            <header className="header glass">
-                <h1 className="logo">FriendsBet 💸</h1>
-                <div className="user-score">
-                    <span>{state.currentUser.points} pts</span>
-                    <span className="avatar-sm">{state.currentUser.avatar}</span>
-                </div>
-            </header>
+  return (
+    <div className="view-container">
+      <header className="header glass">
+        <h1 className="logo">MierclitorisBET 🍑</h1>
+        <div className="user-score">
+          <span>{state.currentUser.points} pts</span>
+          <span className="avatar-sm">{state.currentUser.avatar}</span>
+        </div>
+      </header>
 
-            <div className="feed-content">
-                {sortedBets.map(bet => (
-                    <BetCard key={bet.id} bet={bet} />
-                ))}
-            </div>
+      <div className="feed-content">
+        {sortedBets.map(bet => (
+          <BetCard key={bet.id} bet={bet} />
+        ))}
+      </div>
 
-            <style>{`
+      <style>{`
         .header {
           position: sticky;
           top: 0;
@@ -57,6 +57,6 @@ export function Feed() {
           padding-bottom: 80px; /* Space for navbar */
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

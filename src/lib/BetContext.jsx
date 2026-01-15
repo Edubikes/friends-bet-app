@@ -8,13 +8,22 @@ const getStoredUser = () => {
   return stored ? JSON.parse(stored) : null;
 };
 
+// Helper for monthly logic
+const getCurrentMonthKey = () => {
+  const d = new Date();
+  return `${d.getMonth() + 1}-${d.getFullYear()}`;
+};
+
 const initialState = {
   currentUser: getStoredUser(),
+  currentMonth: getCurrentMonthKey(),
+  lastMonthWinner: null, // { name: 'Edu', month: '12-2025' }
+  monthlyPrize: 'Una caguama bien fría 🍺',
   users: [
     { id: 'u1', name: 'Eduardo', avatar: '😎', points: 100 },
-    { id: 'u2', name: 'Sofia', avatar: '👩‍🎤', points: 120 },
-    { id: 'u3', name: 'Diego', avatar: '🧢', points: 85 },
-    { id: 'u4', name: 'Ana', avatar: '🌺', points: 200 },
+    { id: 'u2', name: 'Sofia', avatar: '👩‍🎤', points: 100 },
+    { id: 'u3', name: 'Diego', avatar: '🧢', points: 100 },
+    { id: 'u4', name: 'Ana', avatar: '🌺', points: 100 },
   ],
   bets: [
     {
@@ -48,6 +57,32 @@ const initialState = {
 
 function betReducer(state, action) {
   switch (action.type) {
+    case 'CHECK_MONTHLY_RESET': {
+      const nowKey = getCurrentMonthKey();
+      if (state.currentMonth !== nowKey) {
+        // New Month! Find winner
+        const winner = [...state.users].sort((a, b) => b.points - a.points)[0];
+
+        // Reset all to 100
+        const resetUsers = state.users.map(u => ({ ...u, points: 100 }));
+
+        // Update current user if exists
+        let newCurrentUser = state.currentUser;
+        if (newCurrentUser) newCurrentUser = { ...newCurrentUser, points: 100 };
+
+        return {
+          ...state,
+          currentMonth: nowKey,
+          lastMonthWinner: { name: winner.name, month: state.currentMonth },
+          users: resetUsers,
+          currentUser: newCurrentUser
+        };
+      }
+      return state;
+    }
+    case 'SET_PRIZE': {
+      return { ...state, monthlyPrize: action.payload };
+    }
     case 'LOGIN': {
       const user = action.payload;
       localStorage.setItem('friendsbet_user', JSON.stringify(user));
@@ -149,8 +184,17 @@ export function BetProvider({ children }) {
     dispatch({ type: 'LOGOUT' });
   };
 
+  const setPrize = (prize) => {
+    dispatch({ type: 'SET_PRIZE', payload: prize });
+  };
+
+  // Check for reset on load
+  useEffect(() => {
+    dispatch({ type: 'CHECK_MONTHLY_RESET' });
+  }, []);
+
   return (
-    <BetContext.Provider value={{ state, placeBet, resolveBet, createBet, deleteBet, login, logout }}>
+    <BetContext.Provider value={{ state, placeBet, resolveBet, createBet, deleteBet, login, logout, setPrize }}>
       {children}
     </BetContext.Provider>
   );

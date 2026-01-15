@@ -102,9 +102,11 @@ export function BetCard({ bet }) {
               />
               <span>pts</span>
             </div>
-            <button className="btn-ghost text-sm" onClick={() => setShowResolve(!showResolve)}>
-              {showResolve ? 'Cancelar' : '⚠ Finalizar Apuesta'}
-            </button>
+            {!isAuthor && (
+              <button className="btn-ghost text-sm" onClick={() => setShowResolve(!showResolve)}>
+                {showResolve ? 'Cancelar' : '⚠ Finalizar Apuesta'}
+              </button>
+            )}
           </div>
         </div>
       )}

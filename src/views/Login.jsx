@@ -2,53 +2,53 @@ import React, { useState } from 'react';
 import { useBets } from '../lib/BetContext';
 
 export function Login() {
-    const { login } = useBets();
-    const [name, setName] = useState('');
-    const [password, setPassword] = useState('');
+  const { login } = useBets();
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!name || !password) {
-            alert("Por favor ingresa tu nombre y contraseña");
-            return;
-        }
-        // Simple logic: name is the user. Password just needs to be non-empty.
-        login(name);
-    };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name || !password) {
+      alert("Por favor ingresa tu nombre y contraseña");
+      return;
+    }
+    // Simple logic: name is the user. Password just needs to be non-empty.
+    login(name);
+  };
 
-    return (
-        <div className="login-container">
-            <div className="login-card glass">
-                <h1 className="logo text-center mb-4">FriendsBet 💸</h1>
-                <p className="text-center text-muted mb-4">Inicia sesión para jugar</p>
+  return (
+    <div className="login-container">
+      <div className="login-card glass">
+        <h1 className="logo text-center mb-4">MierclitorisBET 🍑</h1>
+        <p className="text-center text-muted mb-4">Inicia sesión para jugar</p>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-md">
-                    <div className="form-group">
-                        <label>Nombre de usuario</label>
-                        <input
-                            type="text"
-                            placeholder="Ej: Eduardo"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            autoFocus
-                        />
-                    </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-md">
+          <div className="form-group">
+            <label>Nombre de usuario</label>
+            <input
+              type="text"
+              placeholder="Ej: Eduardo"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoFocus
+            />
+          </div>
 
-                    <div className="form-group">
-                        <label>Contraseña</label>
-                        <input
-                            type="password"
-                            placeholder="••••"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                        />
-                    </div>
+          <div className="form-group">
+            <label>Contraseña</label>
+            <input
+              type="password"
+              placeholder="••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+          </div>
 
-                    <button type="submit" className="btn w-100 mt-2">Entrar</button>
-                </form>
-            </div>
+          <button type="submit" className="btn w-100 mt-2">Entrar</button>
+        </form>
+      </div>
 
-            <style>{`
+      <style>{`
         .login-container {
           min-height: 100vh;
           display: flex;
@@ -87,6 +87,6 @@ export function Login() {
           outline: none;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
