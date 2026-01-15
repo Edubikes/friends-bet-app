@@ -37,7 +37,8 @@ const initialState = {
       ],
       status: 'active', // active, resolved
       createdAt: Date.now() - 100000,
-      totalPool: 90
+      totalPool: 90,
+      voters: []
     },
     {
       id: 'b2',
@@ -50,7 +51,8 @@ const initialState = {
       ],
       status: 'active',
       createdAt: Date.now() - 50000,
-      totalPool: 125
+      totalPool: 125,
+      voters: []
     }
   ],
 };
@@ -108,13 +110,16 @@ function betReducer(state, action) {
       // Update User Points
       const updatedUser = { ...state.currentUser, points: state.currentUser.points - amount };
 
-      // Update Bet Pool
+      // Update Bet Pool & Voters
       const updatedBets = state.bets.map(bet => {
         if (bet.id === betId) {
           const updatedOptions = bet.options.map(opt =>
             opt.id === optionId ? { ...opt, pool: opt.pool + amount } : opt
           );
-          return { ...bet, options: updatedOptions, totalPool: bet.totalPool + amount };
+          // Add user to voters list if not present (logic check should happen before Dispatch, but safe to add here)
+          const newVoters = bet.voters ? [...bet.voters, state.currentUser.id] : [state.currentUser.id];
+
+          return { ...bet, options: updatedOptions, totalPool: bet.totalPool + amount, voters: newVoters };
         }
         return bet;
       });
@@ -148,7 +153,8 @@ function betReducer(state, action) {
         options: action.payload.options.map((text, idx) => ({ id: idx + 1, text, pool: 0 })),
         status: 'active',
         createdAt: Date.now(),
-        totalPool: 0
+        totalPool: 0,
+        voters: []
       };
       return { ...state, bets: [newBet, ...state.bets] };
     }

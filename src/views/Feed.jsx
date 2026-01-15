@@ -1,27 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useBets } from '../lib/BetContext';
 import { BetCard } from '../components/BetCard';
 
 export function Feed() {
   const { state } = useBets();
+  const [activeTab, setActiveTab] = useState('active'); // active | resolved
 
   // Sort by newest
-  const sortedBets = [...state.bets].sort((a, b) => b.createdAt - a.createdAt);
+  const allBets = [...state.bets].sort((a, b) => b.createdAt - a.createdAt);
+  const filteredBets = allBets.filter(bet => bet.status === activeTab);
 
   return (
     <div className="view-container">
-      <header className="header glass">
-        <h1 className="logo">MierclitorisBET 🍑</h1>
-        <div className="user-score">
-          <span>{state.currentUser.points} pts</span>
-          <span className="avatar-sm">{state.currentUser.avatar}</span>
+      <header className="header glass flex-col gap-sm">
+        <div className="flex justify-between items-center w-100">
+          <h1 className="logo">MierclitorisBET 🍑</h1>
+          <div className="user-score">
+            <span>{state.currentUser.points} pts</span>
+            <span className="avatar-sm">{state.currentUser.avatar}</span>
+          </div>
+        </div>
+
+        <div className="tabs w-100 flex gap-xs p-1 bg-surface rounded">
+          <button
+            className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
+            onClick={() => setActiveTab('active')}
+          >
+            🔥 En Curso
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'resolved' ? 'active' : ''}`}
+            onClick={() => setActiveTab('resolved')}
+          >
+            🏁 Finalizadas
+          </button>
         </div>
       </header>
 
       <div className="feed-content">
-        {sortedBets.map(bet => (
-          <BetCard key={bet.id} bet={bet} />
-        ))}
+        {filteredBets.length === 0 ? (
+          <div className="text-center text-muted mt-4">
+            No hay apuestas {activeTab === 'active' ? 'en curso' : 'finalizadas'}
+          </div>
+        ) : (
+          filteredBets.map(bet => (
+            <BetCard key={bet.id} bet={bet} />
+          ))
+        )}
       </div>
 
       <style>{`
@@ -30,9 +55,6 @@ export function Feed() {
           top: 0;
           z-index: 90;
           padding: var(--spacing-md);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
           border-bottom: 1px solid var(--border-subtle);
         }
         .logo {
@@ -55,6 +77,27 @@ export function Feed() {
         .feed-content {
           padding: var(--spacing-md);
           padding-bottom: 80px; /* Space for navbar */
+        }
+        .bg-surface { background: var(--bg-surface); }
+        .rounded { border-radius: var(--radius-sm); }
+        .p-1 { padding: 4px; }
+        .gap-xs { gap: 4px; }
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 8px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--bg-card);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
       `}</style>
     </div>

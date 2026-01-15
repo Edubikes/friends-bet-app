@@ -7,6 +7,7 @@ export function BetCard({ bet }) {
   const [showResolve, setShowResolve] = useState(false);
 
   const isAuthor = state.currentUser?.id === bet.authorId;
+  const hasVoted = bet.voters?.includes(state.currentUser?.id);
 
   const calculateOdds = (optionPool, totalPool) => {
     if (optionPool === 0) return '2.00'; // Base odds if no bets
@@ -14,6 +15,7 @@ export function BetCard({ bet }) {
   };
 
   const handleBet = (optionId) => {
+    if (hasVoted) return; // Prevention
     const amount = parseInt(betAmount);
     if (state.currentUser.points < amount) {
       alert("No tienes puntos suficientes");
@@ -63,8 +65,8 @@ export function BetCard({ bet }) {
           return (
             <button
               key={opt.id}
-              className={`option-btn ${isWinner ? 'winner' : ''}`}
-              disabled={bet.status !== 'active'}
+              className={`option-btn ${isWinner ? 'winner' : ''} ${hasVoted ? 'disabled' : ''}`}
+              disabled={bet.status !== 'active' || hasVoted}
               onClick={() => handleBet(opt.id)}
             >
               <div className="flex justify-between w-100">
@@ -82,7 +84,13 @@ export function BetCard({ bet }) {
         })}
       </div>
 
-      {bet.status === 'active' && (
+      {hasVoted && bet.status === 'active' && (
+        <div className="text-center text-sm text-primary mt-2">
+          ✅ Ya apostaste en esto. ¡Suerte!
+        </div>
+      )}
+
+      {bet.status === 'active' && !hasVoted && (
         <div className="bet-actions flex-col">
           <div className="chips-container flex gap-sm mb-2 w-100">
             {[10, 50, 100].map(val => (
@@ -173,6 +181,11 @@ export function BetCard({ bet }) {
         .option-btn:hover:not(:disabled) {
           border-color: var(--primary);
         }
+        .option-btn:disabled, .option-btn.disabled {
+            opacity: 0.7;
+            cursor: default;
+            border-color: transparent;
+        }
         .option-btn.winner {
           border-color: var(--success);
           background: rgba(16, 185, 129, 0.1);
@@ -261,6 +274,7 @@ export function BetCard({ bet }) {
         .chip:hover { background: var(--primary); color: white; }
         .w-100 { width: 100%; }
         .mb-2 { margin-bottom: 8px; }
+        .text-primary { color: var(--primary); }
       `}</style>
     </div>
   );
