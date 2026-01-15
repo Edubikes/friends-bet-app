@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useBets } from '../lib/BetContext';
 
 export function BetCard({ bet }) {
-  const { placeBet, resolveBet, deleteBet, state } = useBets();
+  const { placeBet, resolveBet, deleteBet, addComment, state } = useBets();
   const [betAmount, setBetAmount] = useState(10);
   const [showResolve, setShowResolve] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState('');
 
   const isAuthor = state.currentUser?.id === bet.authorId;
   const hasVoted = bet.voters?.includes(state.currentUser?.id);
@@ -22,6 +24,13 @@ export function BetCard({ bet }) {
       return;
     }
     placeBet(bet.id, optionId, amount);
+  };
+
+  const handleComment = (e) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    addComment(bet.id, commentText);
+    setCommentText('');
   };
 
   return (
@@ -118,6 +127,32 @@ export function BetCard({ bet }) {
           </div>
         </div>
       )}
+
+      <div className="comments-section mt-4 pt-2 border-t border-subtle">
+        <button className="btn-text w-100 text-sm mb-2" onClick={() => setShowComments(!showComments)}>
+          {showComments ? 'Ocultar Comentarios' : `💬 Comentarios (${bet.comments?.length || 0})`}
+        </button>
+
+        {showComments && (
+          <div className="comments-list">
+            {bet.comments?.map(c => (
+              <div key={c.id} className="comment mb-2">
+                <span className="font-bold text-xs">{c.user}: </span>
+                <span className="text-sm">{c.text}</span>
+              </div>
+            ))}
+            <form onSubmit={handleComment} className="flex gap-sm mt-2">
+              <input
+                className="comment-input"
+                placeholder="Escribe un comentario..."
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+              />
+              <button className="btn-sm" type="submit">Enviar</button>
+            </form>
+          </div>
+        )}
+      </div>
 
       {showResolve && bet.status === 'active' && (
         <div className="resolve-panel glass">
@@ -275,6 +310,14 @@ export function BetCard({ bet }) {
         .w-100 { width: 100%; }
         .mb-2 { margin-bottom: 8px; }
         .text-primary { color: var(--primary); }
+        
+        .border-t { border-top: 1px solid var(--border-subtle); }
+        .pt-2 { padding-top: 8px; }
+        .btn-text { background: none; border: none; color: var(--text-secondary); cursor: pointer; }
+        .btn-text:hover { color: white; }
+        .comment-input { width: 100%; background: #000; color: white; border: 1px solid #333; padding: 6px; border-radius: 4px; }
+        .btn-sm { background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; }
+        .text-xs { font-size: 0.8rem; }
       `}</style>
     </div>
   );

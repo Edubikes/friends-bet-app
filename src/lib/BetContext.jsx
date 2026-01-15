@@ -14,6 +14,12 @@ const getCurrentMonthKey = () => {
   return `${d.getMonth() + 1}-${d.getFullYear()}`;
 };
 
+// Helper for daily logic
+const getTodayKey = () => {
+  const d = new Date();
+  return `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`;
+};
+
 const initialState = {
   currentUser: getStoredUser(),
   currentMonth: getCurrentMonthKey(),
@@ -38,7 +44,10 @@ const initialState = {
       status: 'active', // active, resolved
       createdAt: Date.now() - 100000,
       totalPool: 90,
-      voters: []
+      voters: [],
+      comments: [
+        { id: 'c1', user: 'Sofia', text: 'Esto es seguro que pasa 😂', time: Date.now() - 50000 }
+      ]
     },
     {
       id: 'b2',
@@ -52,7 +61,8 @@ const initialState = {
       status: 'active',
       createdAt: Date.now() - 50000,
       totalPool: 125,
-      voters: []
+      voters: [],
+      comments: []
     }
   ],
 };
@@ -80,6 +90,26 @@ function betReducer(state, action) {
           currentUser: newCurrentUser
         };
       }
+
+      // Check Daily Reward
+      const today = getTodayKey();
+      if (state.currentUser && state.currentUser.lastRewardDate !== today) {
+        const updatedUser = {
+          ...state.currentUser,
+          points: state.currentUser.points + 100,
+          lastRewardDate: today
+        };
+
+        // Show alert (simple way)
+        setTimeout(() => alert(`🎉 ¡Recompensa Diaria!\nRecibiste +100 puntos por entrar hoy.`), 500);
+
+        return {
+          ...state,
+          currentUser: updatedUser,
+          users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u)
+        };
+      }
+
       return state;
     }
     case 'SET_PRIZE': {
@@ -144,6 +174,19 @@ function betReducer(state, action) {
 
       return { ...state, bets: updatedBets };
     }
+    case 'ADD_COMMENT': {
+      const { betId, text } = action.payload;
+      const newComment = {
+        id: `c${Date.now()}`,
+        user: state.currentUser.name,
+        text,
+        time: Date.now()
+      };
+      const updatedBets = state.bets.map(b =>
+        b.id === betId ? { ...b, comments: [...(b.comments || []), newComment] } : b
+      );
+      return { ...state, bets: updatedBets };
+    }
     case 'CREATE_BET': {
       const newBet = {
         id: `b${Date.now()}`,
@@ -154,7 +197,8 @@ function betReducer(state, action) {
         status: 'active',
         createdAt: Date.now(),
         totalPool: 0,
-        voters: []
+        voters: [],
+        comments: []
       };
       return { ...state, bets: [newBet, ...state.bets] };
     }
@@ -194,13 +238,17 @@ export function BetProvider({ children }) {
     dispatch({ type: 'SET_PRIZE', payload: prize });
   };
 
+  const addComment = (betId, text) => {
+    dispatch({ type: 'ADD_COMMENT', payload: { betId, text } });
+  };
+
   // Check for reset on load
   useEffect(() => {
     dispatch({ type: 'CHECK_MONTHLY_RESET' });
   }, []);
 
   return (
-    <BetContext.Provider value={{ state, placeBet, resolveBet, createBet, deleteBet, login, logout, setPrize }}>
+    <BetContext.Provider value={{ state, placeBet, resolveBet, createBet, deleteBet, login, logout, setPrize, addComment }}>
       {children}
     </BetContext.Provider>
   );
