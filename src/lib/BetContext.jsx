@@ -1,0 +1,152 @@
+import { createContext, useContext, useReducer, useEffect } from 'react';
+
+const BetContext = createContext();
+
+// Helper to get initial user from local storage
+const getStoredUser = () => {
+  const stored = localStorage.getItem('friendsbet_user');
+  return stored ? JSON.parse(stored) : null;
+};
+
+const initialState = {
+  currentUser: getStoredUser(),
+  users: [
+    { id: 'u1', name: 'Eduardo', avatar: '😎', points: 100 },
+    { id: 'u2', name: 'Sofia', avatar: '👩‍🎤', points: 120 },
+    { id: 'u3', name: 'Diego', avatar: '🧢', points: 85 },
+    { id: 'u4', name: 'Ana', avatar: '🌺', points: 200 },
+  ],
+  bets: [
+    {
+      id: 'b1',
+      authorId: 'u2',
+      title: '¿A Edu lo sacan de la peda antes de las 12?',
+      options: [
+        { id: 1, text: 'Antes de las 12', pool: 50 },
+        { id: 2, text: 'Después de las 12', pool: 30 },
+        { id: 3, text: 'No lo sacan', pool: 10 },
+      ],
+      status: 'active', // active, resolved
+      createdAt: Date.now() - 100000,
+      totalPool: 90
+    },
+    {
+      id: 'b2',
+      authorId: 'u3',
+      title: '¿Quién gana el FIFA?',
+      options: [
+        { id: 1, text: 'Diego', pool: 100 },
+        { id: 2, text: 'Edu', pool: 20 },
+        { id: 3, text: 'Empate', pool: 5 },
+      ],
+      status: 'active',
+      createdAt: Date.now() - 50000,
+      totalPool: 125
+    }
+  ],
+};
+
+function betReducer(state, action) {
+  switch (action.type) {
+    case 'LOGIN': {
+      const user = action.payload;
+      localStorage.setItem('friendsbet_user', JSON.stringify(user));
+      // Check if user exists in list, if not add them
+      const exists = state.users.find(u => u.name.toLowerCase() === user.name.toLowerCase());
+      let newUsers = state.users;
+      let currentUser = exists || { ...user, id: `u${Date.now()}`, points: 100, avatar: '👤' };
+
+      if (!exists) {
+        newUsers = [...state.users, currentUser];
+      } else {
+        currentUser = exists; // Use existing data (points etc)
+      }
+
+      return { ...state, currentUser, users: newUsers };
+    }
+    case 'LOGOUT': {
+      localStorage.removeItem('friendsbet_user');
+      return { ...state, currentUser: null };
+    }
+    case 'PLACE_BET': {
+      const { betId, optionId, amount } = action.payload;
+      // Update User Points
+      const updatedUser = { ...state.currentUser, points: state.currentUser.points - amount };
+
+      // Update Bet Pool
+      const updatedBets = state.bets.map(bet => {
+        if (bet.id === betId) {
+          const updatedOptions = bet.options.map(opt =>
+            opt.id === optionId ? { ...opt, pool: opt.pool + amount } : opt
+          );
+          return { ...bet, options: updatedOptions, totalPool: bet.totalPool + amount };
+        }
+        return bet;
+      });
+
+      return { ...state, currentUser: updatedUser, bets: updatedBets };
+    }
+    case 'RESOLVE_BET': {
+      const { betId, winningOptionId } = action.payload;
+
+      // 1. Mark bet as resolved
+      // 2. Distribute payouts (simplified for this proof of concept)
+      // In a real app we would calculate payouts for all users. 
+      // Here we just mark it resolved.
+
+      const updatedBets = state.bets.map(bet =>
+        bet.id === betId ? { ...bet, status: 'resolved', result: winningOptionId } : bet
+      );
+
+      return { ...state, bets: updatedBets };
+    }
+    case 'CREATE_BET': {
+      const newBet = {
+        id: `b${Date.now()}`,
+        authorId: state.currentUser.id,
+        title: action.payload.title,
+        options: action.payload.options.map((text, idx) => ({ id: idx + 1, text, pool: 0 })),
+        status: 'active',
+        createdAt: Date.now(),
+        totalPool: 0
+      };
+      return { ...state, bets: [newBet, ...state.bets] };
+    }
+    default:
+      return state;
+  }
+}
+
+export function BetProvider({ children }) {
+  const [state, dispatch] = useReducer(betReducer, initialState);
+
+  const placeBet = (betId, optionId, amount) => {
+    dispatch({ type: 'PLACE_BET', payload: { betId, optionId, amount } });
+  };
+
+  const resolveBet = (betId, winningOptionId) => {
+    dispatch({ type: 'RESOLVE_BET', payload: { betId, winningOptionId } });
+  };
+
+  const createBet = (title, options) => {
+    dispatch({ type: 'CREATE_BET', payload: { title, options } });
+  };
+
+  const login = (name) => {
+    dispatch({ type: 'LOGIN', payload: { name, avatar: '👤' } });
+  };
+
+  const logout = () => {
+    dispatch({ type: 'LOGOUT' });
+  };
+
+  return (
+    <BetContext.Provider value={{ state, placeBet, resolveBet, createBet, login, logout }}>
+      {children}
+    </BetContext.Provider>
+  );
+}
+
+export function useBets() {
+  return useContext(BetContext);
+}
