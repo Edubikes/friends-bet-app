@@ -104,6 +104,10 @@ export function BetProvider({ children }) {
     dispatch({ type: 'LOGIN', payload: user });
   };
 
+  const logout = () => {
+    dispatch({ type: 'LOGOUT' });
+  };
+
   const placeBet = async (betId, optionId, amount) => {
     // 1. Get current bet & user to ensure strict consistency (optional but safer)
     // For MVP, we use local state data but push to DB
