@@ -7,7 +7,7 @@ export function Feed() {
   const [activeTab, setActiveTab] = useState('active'); // active | resolved
 
   // Sort by newest
-  const allBets = [...state.bets].sort((a, b) => b.createdAt - a.createdAt);
+  const allBets = [...state.bets].sort((a, b) => b.created_at - a.created_at);
   const filteredBets = allBets.filter(bet => bet.status === activeTab);
 
   return (

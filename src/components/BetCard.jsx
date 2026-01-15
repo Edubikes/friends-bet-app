@@ -8,7 +8,7 @@ export function BetCard({ bet }) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
 
-  const isAuthor = state.currentUser?.id === bet.authorId;
+  const isAuthor = state.currentUser?.id === bet.author_id;
   const hasVoted = bet.voters?.includes(state.currentUser?.id);
 
   const calculateOdds = (optionPool, totalPool) => {
@@ -37,8 +37,8 @@ export function BetCard({ bet }) {
     <div className="card bet-card">
       <div className="bet-header flex justify-between items-center">
         <div className="flex items-center gap-sm">
-          <div className="avatar">{bet.authorId === 'u1' ? '😎' : '👤'}</div>
-          <span className="text-sm text-muted">@{bet.authorId} preguntó:</span>
+          <div className="avatar">👤</div>
+          <span className="text-sm text-muted">Apostador preguntó:</span>
         </div>
         <div className="flex items-center gap-sm">
           <div className="status-badge text-sm">
@@ -60,16 +60,16 @@ export function BetCard({ bet }) {
 
       <h3 className="bet-title">{bet.title}</h3>
 
-      {bet.imageUrl && (
+      {bet.image_url && (
         <div className="bet-image-container">
-          <img src={bet.imageUrl} alt="Contexto" className="bet-image" />
+          <img src={bet.image_url} alt="Contexto" className="bet-image" />
         </div>
       )}
 
       <div className="options-grid">
         {bet.options.map((opt) => {
-          const odds = calculateOdds(opt.pool, bet.totalPool);
-          const isWinner = bet.status === 'resolved' && bet.result === opt.id;
+          const odds = calculateOdds(opt.pool, bet.total_pool);
+          const isWinner = bet.status === 'resolved' && bet.result_option_id === opt.id;
 
           return (
             <button
@@ -85,7 +85,7 @@ export function BetCard({ bet }) {
               <div className="progress-bar">
                 <div
                   className="fill"
-                  style={{ width: `${bet.totalPool > 0 ? (opt.pool / bet.totalPool) * 100 : 0}%` }}
+                  style={{ width: `${bet.total_pool > 0 ? (opt.pool / bet.total_pool) * 100 : 0}%` }}
                 />
               </div>
             </button>
@@ -173,7 +173,7 @@ export function BetCard({ bet }) {
 
       {bet.status === 'resolved' && (
         <div className="result-banner text-center mt-2">
-          Resultado: <strong>{bet.options.find(o => o.id === bet.result)?.text}</strong>
+          Resultado: <strong>{bet.options.find(o => o.id === bet.result_option_id)?.text}</strong>
         </div>
       )}
 

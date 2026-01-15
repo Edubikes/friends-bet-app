@@ -1,12 +1,7 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
+import { supabase } from './supabaseClient';
 
 const BetContext = createContext();
-
-// Helper to get initial data from local storage
-const getStoredData = (key, defaultValue) => {
-  const stored = localStorage.getItem(key);
-  return stored ? JSON.parse(stored) : defaultValue;
-};
 
 // Helper for monthly logic
 const getCurrentMonthKey = () => {
@@ -20,100 +15,33 @@ const getTodayKey = () => {
   return `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()}`;
 };
 
-const defaultUsers = [
-  { id: 'u1', name: 'Eduardo', avatar: '😎', points: 100 },
-  { id: 'u2', name: 'Sofia', avatar: '👩‍🎤', points: 100 },
-  { id: 'u3', name: 'Diego', avatar: '🧢', points: 100 },
-  { id: 'u4', name: 'Ana', avatar: '🌺', points: 100 },
-];
-
-const defaultBets = [
-  {
-    id: 'b1',
-    authorId: 'u2',
-    title: '¿A Edu lo sacan de la peda antes de las 12?',
-    options: [
-      { id: 1, text: 'Antes de las 12', pool: 50 },
-      { id: 2, text: 'Después de las 12', pool: 30 },
-      { id: 3, text: 'No lo sacan', pool: 10 },
-    ],
-    status: 'active',
-    createdAt: Date.now() - 100000,
-    totalPool: 90,
-    voters: [],
-    comments: [
-      { id: 'c1', user: 'Sofia', text: 'Esto es seguro que pasa 😂', time: Date.now() - 50000 }
-    ]
-  },
-  {
-    id: 'b2',
-    authorId: 'u3',
-    title: '¿Quién gana el FIFA?',
-    options: [
-      { id: 1, text: 'Diego', pool: 100 },
-      { id: 2, text: 'Edu', pool: 20 },
-      { id: 3, text: 'Empate', pool: 5 },
-    ],
-    status: 'active',
-    createdAt: Date.now() - 50000,
-    totalPool: 125,
-    voters: [],
-    comments: []
-  }
-];
-
+// State now starts mostly empty/loading
 const initialState = {
-  currentUser: getStoredData('friendsbet_user', null),
+  currentUser: JSON.parse(localStorage.getItem('friendsbet_user')) || null, // Keep user login in LS for convenience
   currentMonth: getCurrentMonthKey(),
-  lastMonthWinner: getStoredData('friendsbet_winner', null),
-  monthlyPrize: getStoredData('friendsbet_prize', 'Una caguama bien fría 🍺'),
-  users: getStoredData('friendsbet_users', defaultUsers),
-  bets: getStoredData('friendsbet_bets', defaultBets),
+  lastMonthWinner: null,
+  monthlyPrize: 'Cargando...',
+  users: [],
+  bets: [],
+  loading: true
 };
 
 function betReducer(state, action) {
   switch (action.type) {
-    case 'CHECK_MONTHLY_RESET': {
-      const nowKey = getCurrentMonthKey();
-      if (state.currentMonth !== nowKey) {
-        // New Month! Find winner
-        const winner = [...state.users].sort((a, b) => b.points - a.points)[0];
-
-        // Reset all to 100
-        const resetUsers = state.users.map(u => ({ ...u, points: 100 }));
-
-        // Update current user if exists
-        let newCurrentUser = state.currentUser;
-        if (newCurrentUser) newCurrentUser = { ...newCurrentUser, points: 100 };
-
-        return {
-          ...state,
-          currentMonth: nowKey,
-          lastMonthWinner: { name: winner.name, month: state.currentMonth },
-          users: resetUsers,
-          currentUser: newCurrentUser
-        };
-      }
-
-      // Check Daily Reward
-      const today = getTodayKey();
-      if (state.currentUser && state.currentUser.lastRewardDate !== today) {
-        const updatedUser = {
-          ...state.currentUser,
-          points: state.currentUser.points + 100,
-          lastRewardDate: today
-        };
-
-        // Show alert (simple way)
-        setTimeout(() => alert(`🎉 ¡Recompensa Diaria!\nRecibiste +100 puntos por entrar hoy.`), 500);
-
-        return {
-          ...state,
-          currentUser: updatedUser,
-          users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u)
-        };
-      }
-
+    case 'SET_DATA': {
+      return {
+        ...state,
+        users: action.payload.users || [],
+        bets: action.payload.bets || [],
+        monthlyPrize: action.payload.globals?.monthly_prize || 'Sugerir Premio',
+        lastMonthWinner: action.payload.globals?.last_month_winner || null,
+        loading: false
+      };
+    }
+    case 'REALTIME_UPDATE_BETS': {
+      // Triggered by subscription, we just updated state via SET_DATA mostly, 
+      // but if we implemented granular updates, they would go here.
+      // For this MVP, we rely on refetching in the effect.
       return state;
     }
     case 'SET_PRIZE': {
@@ -122,94 +50,11 @@ function betReducer(state, action) {
     case 'LOGIN': {
       const user = action.payload;
       localStorage.setItem('friendsbet_user', JSON.stringify(user));
-      // Check if user exists in list, if not add them
-      const exists = state.users.find(u => u.name.toLowerCase() === user.name.toLowerCase());
-      let newUsers = state.users;
-      let currentUser = exists || { ...user, id: `u${Date.now()}`, points: 100, avatar: '👤' };
-
-      if (!exists) {
-        newUsers = [...state.users, currentUser];
-      } else {
-        currentUser = exists; // Use existing data (points etc)
-      }
-
-      return { ...state, currentUser, users: newUsers };
+      return { ...state, currentUser: user };
     }
     case 'LOGOUT': {
       localStorage.removeItem('friendsbet_user');
       return { ...state, currentUser: null };
-    }
-    case 'PLACE_BET': {
-      const { betId, optionId, amount } = action.payload;
-      // Update User Points
-      const updatedUser = { ...state.currentUser, points: state.currentUser.points - amount };
-
-      // Update Users List
-      const updatedUsersList = state.users.map(u =>
-        u.id === updatedUser.id ? updatedUser : u
-      );
-
-      // Update Bet Pool & Voters
-      const updatedBets = state.bets.map(bet => {
-        if (bet.id === betId) {
-          const updatedOptions = bet.options.map(opt =>
-            opt.id === optionId ? { ...opt, pool: opt.pool + amount } : opt
-          );
-          // Add user to voters list if not present (logic check should happen before Dispatch, but safe to add here)
-          const newVoters = bet.voters ? [...bet.voters, state.currentUser.id] : [state.currentUser.id];
-
-          return { ...bet, options: updatedOptions, totalPool: bet.totalPool + amount, voters: newVoters };
-        }
-        return bet;
-      });
-
-      return { ...state, currentUser: updatedUser, users: updatedUsersList, bets: updatedBets };
-    }
-    case 'DELETE_BET': {
-      const betId = action.payload;
-      return { ...state, bets: state.bets.filter(b => b.id !== betId) };
-    }
-    case 'RESOLVE_BET': {
-      const { betId, winningOptionId } = action.payload;
-
-      // 1. Mark bet as resolved
-      // 2. Distribute payouts (simplified for this proof of concept)
-      // In a real app we would calculate payouts for all users. 
-      // Here we just mark it resolved.
-
-      const updatedBets = state.bets.map(bet =>
-        bet.id === betId ? { ...bet, status: 'resolved', result: winningOptionId } : bet
-      );
-
-      return { ...state, bets: updatedBets };
-    }
-    case 'ADD_COMMENT': {
-      const { betId, text } = action.payload;
-      const newComment = {
-        id: `c${Date.now()}`,
-        user: state.currentUser.name,
-        text,
-        time: Date.now()
-      };
-      const updatedBets = state.bets.map(b =>
-        b.id === betId ? { ...b, comments: [...(b.comments || []), newComment] } : b
-      );
-      return { ...state, bets: updatedBets };
-    }
-    case 'CREATE_BET': {
-      const newBet = {
-        id: `b${Date.now()}`,
-        authorId: state.currentUser.id,
-        title: action.payload.title,
-        imageUrl: action.payload.imageUrl || null,
-        options: action.payload.options.map((text, idx) => ({ id: idx + 1, text, pool: 0 })),
-        status: 'active',
-        createdAt: Date.now(),
-        totalPool: 0,
-        voters: [],
-        comments: []
-      };
-      return { ...state, bets: [newBet, ...state.bets] };
     }
     default:
       return state;
@@ -219,51 +64,144 @@ function betReducer(state, action) {
 export function BetProvider({ children }) {
   const [state, dispatch] = useReducer(betReducer, initialState);
 
-  const placeBet = (betId, optionId, amount) => {
-    dispatch({ type: 'PLACE_BET', payload: { betId, optionId, amount } });
+  // --- ACTIONS (Async Wrappers) ---
+
+  const fetchData = async () => {
+    try {
+      const { data: users } = await supabase.from('users').select('*');
+      const { data: bets } = await supabase.from('bets').select('*');
+      const { data: globals } = await supabase.from('globals').select('*').single();
+
+      dispatch({
+        type: 'SET_DATA',
+        payload: { users, bets, globals }
+      });
+    } catch (e) {
+      console.error("Error fetching data:", e);
+    }
   };
 
-  const resolveBet = (betId, winningOptionId) => {
-    dispatch({ type: 'RESOLVE_BET', payload: { betId, winningOptionId } });
+  const login = async (name) => {
+    // Check if user exists in Supabase
+    let { data: user } = await supabase.from('users').select('*').ilike('name', name).single();
+
+    if (!user) {
+      // Create new user
+      const newUser = { id: `u${Date.now()}`, name, avatar: '👤', points: 100 };
+      await supabase.from('users').insert(newUser);
+      user = newUser;
+    } else {
+      // Check Daily Reward Logic on Cloud User
+      const today = getTodayKey();
+      if (user.last_reward_date !== today) {
+        const newPoints = (user.points || 0) + 100;
+        await supabase.from('users').update({ points: newPoints, last_reward_date: today }).eq('id', user.id);
+        user = { ...user, points: newPoints, last_reward_date: today };
+        setTimeout(() => alert(`🎉 ¡Recompensa Diaria!\nRecibiste +100 puntos por entrar hoy.`), 500);
+      }
+    }
+
+    dispatch({ type: 'LOGIN', payload: user });
   };
 
-  const createBet = (title, options, imageUrl) => {
-    dispatch({ type: 'CREATE_BET', payload: { title, options, imageUrl } });
+  const placeBet = async (betId, optionId, amount) => {
+    // 1. Get current bet & user to ensure strict consistency (optional but safer)
+    // For MVP, we use local state data but push to DB
+    const bet = state.bets.find(b => b.id === betId);
+    const user = state.currentUser;
+
+    if (!bet || !user) return;
+
+    // Update User Points
+    await supabase.from('users').update({ points: user.points - amount }).eq('id', user.id);
+
+    // Update Bet Pool
+    const updatedOptions = bet.options.map(opt =>
+      opt.id === optionId ? { ...opt, pool: opt.pool + amount } : opt
+    );
+    const newVoters = [...(bet.voters || []), user.id];
+
+    await supabase.from('bets').update({
+      options: updatedOptions,
+      total_pool: bet.totalPool + amount,
+      voters: newVoters
+    }).eq('id', betId);
   };
 
-  const deleteBet = (betId) => {
-    dispatch({ type: 'DELETE_BET', payload: betId });
+  const createBet = async (title, options, imageUrl) => {
+    const newBet = {
+      id: `b${Date.now()}`,
+      author_id: state.currentUser.id,
+      title,
+      image_url: imageUrl || null,
+      options: options.map((text, idx) => ({ id: idx + 1, text, pool: 0 })),
+      status: 'active',
+      created_at: Date.now(),
+      total_pool: 0,
+      voters: [],
+      comments: []
+    };
+    await supabase.from('bets').insert(newBet);
   };
 
-  const login = (name) => {
-    dispatch({ type: 'LOGIN', payload: { name, avatar: '👤' } });
+  const resolveBet = async (betId, winningOptionId) => {
+    await supabase.from('bets').update({
+      status: 'resolved',
+      result_option_id: winningOptionId
+    }).eq('id', betId);
   };
 
-  const logout = () => {
-    dispatch({ type: 'LOGOUT' });
+  const deleteBet = async (betId) => {
+    await supabase.from('bets').delete().eq('id', betId);
   };
 
-  const setPrize = (prize) => {
+  const addComment = async (betId, text) => {
+    const bet = state.bets.find(b => b.id === betId);
+    const newComment = {
+      id: `c${Date.now()}`,
+      user: state.currentUser.name,
+      text,
+      time: Date.now()
+    };
+    const newComments = [...(bet.comments || []), newComment];
+
+    await supabase.from('bets').update({ comments: newComments }).eq('id', betId);
+  };
+
+  const setPrize = async (prize) => {
+    await supabase.from('globals').update({ monthly_prize: prize }).eq('id', 'config');
+    // Local dispatch to feel instant
     dispatch({ type: 'SET_PRIZE', payload: prize });
   };
 
-  const addComment = (betId, text) => {
-    dispatch({ type: 'ADD_COMMENT', payload: { betId, text } });
-  };
-
-  // Check for reset on load
+  // --- INITIAL LOAD & REALTIME ---
   useEffect(() => {
-    dispatch({ type: 'CHECK_MONTHLY_RESET' });
+    fetchData();
+
+    // Subscribe to ALL changes
+    const subscription = supabase
+      .channel('public:everything')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        console.log('Change received! Refreshing data...');
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
-  // Persistence Effect
+  // Sync currentUser with latest fetched users data
   useEffect(() => {
-    if (state.currentUser) localStorage.setItem('friendsbet_user', JSON.stringify(state.currentUser));
-    localStorage.setItem('friendsbet_users', JSON.stringify(state.users));
-    localStorage.setItem('friendsbet_bets', JSON.stringify(state.bets));
-    localStorage.setItem('friendsbet_prize', JSON.stringify(state.monthlyPrize));
-    if (state.lastMonthWinner) localStorage.setItem('friendsbet_winner', JSON.stringify(state.lastMonthWinner));
-  }, [state]);
+    if (state.currentUser && state.users.length > 0) {
+      const syncedUser = state.users.find(u => u.id === state.currentUser.id);
+      if (syncedUser && (syncedUser.points !== state.currentUser.points)) {
+        // Upate local session user if remote changed
+        dispatch({ type: 'LOGIN', payload: syncedUser });
+      }
+    }
+  }, [state.users]);
 
   return (
     <BetContext.Provider value={{ state, placeBet, resolveBet, createBet, deleteBet, login, logout, setPrize, addComment }}>
